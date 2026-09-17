@@ -1,32 +1,30 @@
 class GraphicPiano {
   constructor(svgElement, options = {}) {
     this.svg = svgElement;
-    this.settings = {
-      keySpacing: 5,
-      cornerRadius: 5,
-      padding: [10, 10],
-      blackKeyHeightRatio: 0.55,
-    };
+    this.settings = {};
     this.keysData = [];
     this.blackKeyWidth = 0;
     this.startMidi = 0;
+    // Store initial options but don’t apply them yet
     Object.assign(this.settings, options);
   }
 
+  // New method to update size explicitly
   updateSize(svgWidth, svgHeight) {
     this.settings.svgSize = [svgWidth, svgHeight];
-    this.updateSettings(this.settings);
-    this.initialize();
+    this.updateSettings(this.settings); // Re-apply settings with new size
+    this.initialize(); // Re-initialize and draw with updated size
   }
 
   updateSettings(options) {
     Object.assign(this.settings, options);
     if (this.settings.svgSize) {
+      // Only update SVG attributes if size is provided
       this.svgSize = this.settings.svgSize;
-      this.padding = this.settings.padding || [10, 10];
+      this.padding = this.settings.padding || [0, 0];
       this.whiteKeyHeight = this.svgSize[1] - 2 * this.padding[1];
       this.blackKeyHeight =
-        this.whiteKeyHeight * (this.settings.blackKeyHeightRatio || 0.55);
+        this.whiteKeyHeight * (this.settings.blackKeyHeightRatio || 0.6);
       this.svg.setAttribute('width', `${this.svgSize[0]}px`);
       this.svg.setAttribute('height', `${this.svgSize[1]}px`);
       this.svg.setAttribute(
@@ -40,6 +38,7 @@ class GraphicPiano {
 
   initializeData() {
     if (!this.svgSize) {
+      console.warn('SVG size not set, cannot initialize data');
       return;
     }
     this.svg.innerHTML = '';
@@ -50,6 +49,7 @@ class GraphicPiano {
 
   draw() {
     if (!this.svgSize) {
+      console.warn('SVG size not set, cannot draw');
       return;
     }
     this.svg.innerHTML = '';
@@ -66,6 +66,7 @@ class GraphicPiano {
     this.draw();
   }
 
+  //--------------------- generateKeyData
   generateKeyData() {
     this.keysData = [];
     const { startMidi, endMidi } = this.settings;
@@ -73,18 +74,18 @@ class GraphicPiano {
     const whiteKeyWidth = 1 / 7;
     const blackKeyWidth = 1 / 13;
     const keyCenters = [
-      { center: 1 / 14, isBlack: false },
-      { center: (3 / 10) * (3 / 7), isBlack: true },
-      { center: 3 / 14, isBlack: false },
-      { center: (7 / 10) * (3 / 7), isBlack: true },
-      { center: 5 / 14, isBlack: false },
-      { center: 7 / 14, isBlack: false },
-      { center: 3 / 7 + (3 / 14) * (4 / 7), isBlack: true },
-      { center: 9 / 14, isBlack: false },
-      { center: 3 / 7 + (7 / 14) * (4 / 7), isBlack: true },
-      { center: 11 / 14, isBlack: false },
-      { center: 3 / 7 + (11 / 14) * (4 / 7), isBlack: true },
-      { center: 13 / 14, isBlack: false },
+      { center: 1 / 14, isBlack: false }, // C
+      { center: (3 / 10) * (3 / 7), isBlack: true }, // C#
+      { center: 3 / 14, isBlack: false }, // D
+      { center: (7 / 10) * (3 / 7), isBlack: true }, // D#
+      { center: 5 / 14, isBlack: false }, // E
+      { center: 7 / 14, isBlack: false }, // F
+      { center: 3 / 7 + (3 / 14) * (4 / 7), isBlack: true }, // F#
+      { center: 9 / 14, isBlack: false }, // G
+      { center: 3 / 7 + (7 / 14) * (4 / 7), isBlack: true }, // G#
+      { center: 11 / 14, isBlack: false }, // A
+      { center: 3 / 7 + (11 / 14) * (4 / 7), isBlack: true }, // A#
+      { center: 13 / 14, isBlack: false }, // B
     ];
 
     for (let midi = startMidi; midi <= endMidi; midi++) {
@@ -135,8 +136,14 @@ class GraphicPiano {
         });
       }
     }
+    console.log(
+      `Generated ${this.keysData.length} keys: ${
+        this.keysData.filter((k) => !k.isBlack).length
+      } white, ${this.keysData.filter((k) => k.isBlack).length} black`
+    );
   }
 
+  //--------------------- getWhiteKeyPathData
   getWhiteKeyPathData({
     left,
     right,
@@ -147,9 +154,8 @@ class GraphicPiano {
     bottomBlackKey,
     radius,
   }) {
-    const r = Math.max(0, radius !== undefined ? radius : 5);
     const points = [
-      [left, bottom - r],
+      [left, bottom - radius],
       ...(narrowLeft === left
         ? [[left, top]]
         : [
@@ -159,40 +165,34 @@ class GraphicPiano {
           ]),
       [narrowRight, top],
       ...(narrowRight === right
-        ? [[right, bottom - r]]
+        ? [[right, bottom - radius]]
         : [
             [narrowRight, bottomBlackKey],
             [right, bottomBlackKey],
-            [right, bottom - r],
+            [right, bottom - radius],
           ]),
     ];
     let d = `M ${points[0][0]},${points[0][1]}`;
     for (let i = 1; i < points.length; i++)
       d += ` L ${points[i][0]},${points[i][1]}`;
-    if (r > 0) {
-      d += ` A ${r},${r} 0 0 1 ${right - r},${bottom}`;
-      d += ` L ${left + r},${bottom}`;
-      d += ` A ${r},${r} 0 0 1 ${left},${bottom - r}`;
-    } else {
-      d += ` L ${right},${bottom} L ${left},${bottom}`;
-    }
+    d += ` A ${radius},${radius} 0 0 1 ${right - radius},${bottom}`;
+    d += ` L ${left + radius},${bottom}`;
+    d += ` A ${radius},${radius} 0 0 1 ${left},${bottom - radius}`;
     d += ` Z`;
     return d;
-  }
+  } //-------------- / getWhiteKeyPathData
 
+  //--------------------- renderWhiteKey
   renderWhiteKey(key) {
-    const spacing = this.settings.keySpacing !== undefined ? this.settings.keySpacing : 5;
-    const halfSpacing = spacing / 2;
+    const halfSpacing = this.settings.keySpacing / 2;
     const left = this.padding[0] + key.left + halfSpacing;
     const right = this.padding[0] + key.right - halfSpacing;
     const narrowLeft = this.padding[0] + key.narrowLeft + halfSpacing;
     const narrowRight = this.padding[0] + key.narrowRight - halfSpacing;
     const bottomBlackKey =
-      this.padding[1] + this.blackKeyHeight + spacing;
+      this.padding[1] + this.blackKeyHeight + this.settings.keySpacing;
     const top = this.padding[1];
     const bottom = this.padding[1] + this.whiteKeyHeight;
-
-    const radius = this.settings.cornerRadius !== undefined ? this.settings.cornerRadius : 5;
 
     const pathData = this.getWhiteKeyPathData({
       left,
@@ -202,13 +202,13 @@ class GraphicPiano {
       top,
       bottom,
       bottomBlackKey,
-      radius: radius,
+      radius: this.settings.cornerRadius,
     });
 
     const path = makeElement('svg:path', {
       d: pathData,
-      fill: '#ffffff',
-      stroke: '#000000',
+      fill: '#ddd',
+      stroke: 'black',
       'stroke-width': '1',
     });
 
@@ -218,26 +218,23 @@ class GraphicPiano {
     key.bbox = { position: [left, top], size: [right - left, bottom - top] };
 
     this.svg.appendChild(path);
-  }
+  } //-------------- / renderWhiteKey
 
+  //--------------------- renderBlackKey
   renderBlackKey(key) {
-    const spacing = this.settings.keySpacing !== undefined ? this.settings.keySpacing : 5;
-    const halfSpacing = spacing / 2;
+    const halfSpacing = this.settings.keySpacing / 2;
     const left = this.padding[0] + key.left + halfSpacing;
-    const width = key.right - key.left - spacing;
+    const width = key.right - key.left - this.settings.keySpacing;
     const top = this.padding[1];
     const height = this.blackKeyHeight;
-    const radius = Math.min(3, this.settings.cornerRadius !== undefined ? this.settings.cornerRadius : 5);
 
     const rect = makeElement('svg:rect', {
       x: left,
       y: top,
       width: width,
       height: height,
-      rx: radius,
-      ry: radius,
-      fill: '#1c1c20',
-      stroke: '#000000',
+      fill: '#222',
+      stroke: 'black',
       'stroke-width': '1',
     });
 
@@ -247,16 +244,17 @@ class GraphicPiano {
     key.bbox = { position: [left, top], size: [width, height] };
 
     this.svg.appendChild(rect);
-  }
+  } //-------------- / renderBlackKey
 
+  // --------------------- finalizePianoData (REPLACE WHOLE METHOD)
   finalizePianoData() {
+    // Keep origin BEFORE scaling so we can map normalized x -> pixels later.
     const originBaseLeft = this.keysData[0].baseLeft;
-    const spacing = this.settings.keySpacing !== undefined ? this.settings.keySpacing : 5;
 
     const totalWidth =
       this.keysData[this.keysData.length - 1].baseRight - originBaseLeft;
     const drawableWidth = this.svgSize[0] - 2 * this.padding[0];
-    const totalSpacing = spacing * (this.keysData.length - 1);
+    const totalSpacing = this.settings.keySpacing * (this.keysData.length - 1);
     const scaleFactor = (drawableWidth - totalSpacing) / totalWidth;
 
     this.keysData.forEach((key) => {
@@ -269,8 +267,8 @@ class GraphicPiano {
     });
 
     const lastKey = this.keysData[this.keysData.length - 1];
-    const currentLastRight = lastKey.right - spacing / 2;
-    const targetLastRight = drawableWidth - spacing / 2;
+    const currentLastRight = lastKey.right - this.settings.keySpacing / 2;
+    const targetLastRight = drawableWidth - this.settings.keySpacing / 2;
     const adjustmentFactor = targetLastRight / currentLastRight;
 
     this.keysData.forEach((key) => {
@@ -285,33 +283,39 @@ class GraphicPiano {
     const sampleBlackKey = this.keysData.find((key) => key.isBlack);
     if (sampleBlackKey) {
       this.blackKeyWidth =
-        sampleBlackKey.right - sampleBlackKey.left - spacing;
+        sampleBlackKey.right - sampleBlackKey.left - this.settings.keySpacing;
     }
 
+    // Map normalized x -> pixel x (no spacing, no padding). We'll add those in render.
     this._xOrigin = originBaseLeft;
     this._xScale = scaleFactor * adjustmentFactor;
   }
 
+  //--------------------- getSvgElement
   getSvgElement() {
     return this.svg;
-  }
+  } //-------------- / getSvgElement
 
+  //--------------------- getKeysData
   getKeysData() {
     return this.keysData;
-  }
+  } //-------------- / getKeysData
 
+  //--------------------- getKeyByMidi
   getKeyByMidi(midiCode) {
     const index = midiCode - this.startMidi;
     if (index < 0 || index >= this.keysData.length) {
       return null;
     }
     return this.keysData[index];
-  }
+  } //-------------- / getKeyByMidi
 
+  //--------------------- getBlackKeyWidth
   getBlackKeyWidth() {
     return this.blackKeyWidth;
-  }
+  } //-------------- / getBlackKeyWidth
 
+  //--------------------- getWhiteKeyDimensions
   getWhiteKeyDimensions(midiCode) {
     const key = this.getKeyByMidi(midiCode);
     if (!key || key.isBlack) {
@@ -324,22 +328,23 @@ class GraphicPiano {
       height: this.whiteKeyHeight,
       blackKeyHeight: this.blackKeyHeight,
     };
-  }
+  } //-------------- / getWhiteKeyDimensions
 
+  //--------------------- getKeyBoundingBox
   getKeyBoundingBox(midiCode) {
     const key = this.getKeyByMidi(midiCode);
     if (!key) {
       return null;
     }
     return key.bbox;
-  }
+  } //-------------- / getKeyBoundingBox
 
+  //--------------------- getKeyCoordinates
   getKeyCoordinates(midiCode) {
     const key = this.getKeyByMidi(midiCode);
     if (!key) return [0, 0];
     return key.position;
-  }
-}
+  } //-------------- / getKeyCoordinates
 
-globalThis.GraphicPiano = GraphicPiano;
-if (typeof module !== 'undefined' && module.exports) module.exports = GraphicPiano;
+  
+}

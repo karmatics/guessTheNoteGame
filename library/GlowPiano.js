@@ -1,3 +1,4 @@
+// --- START OF FILE GlowPiano.js ---
 class GlowPiano {
   constructor(graphicPiano, options = {}) {
     this.basePiano = graphicPiano;
@@ -554,10 +555,10 @@ class GlowPiano {
     if (this.settings.monochrome) {
       if (!key.isBlack) {
         key.fillColor = [255, 255, 255];
-        key.borderColor = [0, 0, 0];
+        key.borderColor = [160, 160, 170];
       } else {
-        key.fillColor = [28, 28, 32];
-        key.borderColor = [0, 0, 0];
+        key.fillColor = [30, 30, 36];
+        key.borderColor = [10, 10, 15];
       }
       return;
     }
@@ -579,12 +580,12 @@ class GlowPiano {
     if (this.settings.monochrome) {
       if (!key.isBlack) {
         key.element.setAttribute('fill', '#ffffff');
-        key.element.setAttribute('stroke', '#000000');
-        key.element.setAttribute('stroke-width', '1');
+        key.element.setAttribute('stroke', '#a0a0a8');
+        key.element.setAttribute('stroke-width', String(this.settings.borderThickness));
       } else {
-        key.element.setAttribute('fill', '#1c1c20');
-        key.element.setAttribute('stroke', '#000000');
-        key.element.setAttribute('stroke-width', '1');
+        key.element.setAttribute('fill', '#202026');
+        key.element.setAttribute('stroke', '#0a0a0e');
+        key.element.setAttribute('stroke-width', String(this.settings.blackBorderThickness));
       }
       return;
     }
@@ -592,11 +593,11 @@ class GlowPiano {
     if (!key.isBlack) {
       key.element.setAttribute('fill', `rgb(${key.fillColor.join(',')})`);
       key.element.setAttribute('stroke', `rgb(${key.borderColor.join(',')})`);
-      key.element.setAttribute('stroke-width', String(this.settings.borderThickness || 4));
+      key.element.setAttribute('stroke-width', String(this.settings.borderThickness));
     } else {
       key.element.setAttribute('fill', `rgb(${key.fillColor.join(',')})`);
       key.element.setAttribute('stroke', `rgb(${key.borderColor.join(',')})`);
-      key.element.setAttribute('stroke-width', String(this.settings.blackBorderThickness || 2));
+      key.element.setAttribute('stroke-width', String(this.settings.blackBorderThickness));
     }
   }
 
@@ -709,94 +710,81 @@ class GlowPiano {
     let showSemiGlow = false;
 
     if (!key.isBlack) {
-      if (isMono) {
-        strokeWidth = '1';
-        if (key.isActive) {
+      strokeWidth = String(this.settings.borderThickness);
+      if (!key.saturatedColor) key.saturatedColor = [128, 128, 128];
+
+      if (key.isActive) {
+        if (isMono) {
           fill = 'rgb(186, 230, 253)';
           stroke = 'rgb(56, 189, 248)';
-          strokeWidth = '1.5';
-          showActiveGlow = true;
-        } else if (key.isSemiActive) {
-          fill = 'rgb(224, 242, 254)';
-          stroke = 'rgb(125, 211, 252)';
-          strokeWidth = '1.5';
-          showSemiGlow = true;
-        } else if (key.isInactive) {
-          fill = `rgb(${this.settings.inactiveWhiteFillColor.join(',')})`;
-          stroke = '#666666';
         } else {
-          fill = '#ffffff';
-          stroke = '#000000';
-          strokeWidth = '1';
-        }
-      } else {
-        strokeWidth = String(this.settings.borderThickness || 4);
-        if (!key.saturatedColor) key.saturatedColor = [128, 128, 128];
-
-        if (key.isActive) {
           const activeFillColor = this.mixWithWhite(key.saturatedColor, this.settings.activePastelFactor);
           fill = `rgb(${activeFillColor.join(',')})`;
           stroke = fill;
-          showActiveGlow = true;
-        } else if (key.isSemiActive) {
+        }
+        showActiveGlow = true;
+      } else if (key.isSemiActive) {
+        if (isMono) {
+          fill = 'rgb(224, 242, 254)';
+          stroke = 'rgb(125, 211, 252)';
+        } else {
           const semiFillColor = this.mixWithWhite(key.saturatedColor, this.settings.semiActivePastelFactor);
           fill = `rgb(${semiFillColor.join(',')})`;
           stroke = fill;
-          showSemiGlow = true;
-        } else if (key.isInactive) {
-          fill = `rgb(${this.settings.inactiveWhiteFillColor.join(',')})`;
-          stroke = `rgb(${this.settings.inactiveBorderColor.join(',')})`;
+        }
+        showSemiGlow = true;
+      } else if (key.isInactive) {
+        fill = `rgb(${this.settings.inactiveWhiteFillColor.join(',')})`;
+        stroke = `rgb(${this.settings.inactiveBorderColor.join(',')})`;
+      } else {
+        if (isMono) {
+          fill = '#ffffff';
+          stroke = '#a0a0a8';
         } else {
           fill = `rgb(${key.fillColor.join(',')})`;
           stroke = `rgb(${key.borderColor.join(',')})`;
         }
       }
     } else {
-      if (isMono) {
-        strokeWidth = '1';
-        if (key.isActive) {
+      strokeWidth = String(this.settings.blackBorderThickness);
+
+      const calculateMixedStroke = (pastelFactor) => {
+        const leftIdx = (key.keyIndex - 1 + 12) % 12;
+        const rightIdx = (key.keyIndex + 1) % 12;
+        const leftColor = this.saturatedColors[leftIdx] || [128, 128, 128];
+        const rightColor = this.saturatedColors[rightIdx] || [128, 128, 128];
+        const mixedLeft = this.mixWithWhite(leftColor, pastelFactor);
+        const mixedRight = this.mixWithWhite(rightColor, pastelFactor);
+        return mixedLeft.map((c, i) => Math.round((c + mixedRight[i]) / 2));
+      };
+
+      if (key.isActive) {
+        if (isMono) {
           fill = 'rgb(51, 65, 85)';
           stroke = 'rgb(56, 189, 248)';
-          strokeWidth = '1.5';
-          showActiveGlow = true;
-        } else if (key.isSemiActive) {
-          fill = 'rgb(30, 41, 59)';
-          stroke = 'rgb(125, 211, 252)';
-          strokeWidth = '1.5';
-          showSemiGlow = true;
-        } else if (key.isInactive) {
-          fill = `rgb(${this.settings.inactiveBlackFillColor.join(',')})`;
-          stroke = '#444444';
         } else {
-          fill = '#1c1c20';
-          stroke = '#000000';
-          strokeWidth = '1';
-        }
-      } else {
-        strokeWidth = String(this.settings.blackBorderThickness || 2);
-        const calculateMixedStroke = (pastelFactor) => {
-          const leftIdx = (key.keyIndex - 1 + 12) % 12;
-          const rightIdx = (key.keyIndex + 1) % 12;
-          const leftColor = this.saturatedColors[leftIdx] || [128, 128, 128];
-          const rightColor = this.saturatedColors[rightIdx] || [128, 128, 128];
-          const mixedLeft = this.mixWithWhite(leftColor, pastelFactor);
-          const mixedRight = this.mixWithWhite(rightColor, pastelFactor);
-          return mixedLeft.map((c, i) => Math.round((c + mixedRight[i]) / 2));
-        };
-
-        if (key.isActive) {
           fill = key.gradientId ? `url(#${key.gradientId})` : `rgb(${this.settings.darkGray.join(',')})`;
           const strokeColorRgb = calculateMixedStroke(this.settings.blackPastelFactor);
           stroke = `rgb(${strokeColorRgb.join(',')})`;
-          showActiveGlow = true;
-        } else if (key.isSemiActive) {
+        }
+        showActiveGlow = true;
+      } else if (key.isSemiActive) {
+        if (isMono) {
+          fill = 'rgb(30, 41, 59)';
+          stroke = 'rgb(125, 211, 252)';
+        } else {
           fill = key.semiGradientId ? `url(#${key.semiGradientId})` : `rgb(${this.settings.darkGray.join(',')})`;
           const strokeColorRgb = calculateMixedStroke(this.settings.semiActiveBlackPastelFactor);
           stroke = `rgb(${strokeColorRgb.join(',')})`;
-          showSemiGlow = true;
-        } else if (key.isInactive) {
-          fill = `rgb(${this.settings.inactiveBlackFillColor.join(',')})`;
-          stroke = `rgb(${this.settings.inactiveBorderColor.join(',')})`;
+        }
+        showSemiGlow = true;
+      } else if (key.isInactive) {
+        fill = `rgb(${this.settings.inactiveBlackFillColor.join(',')})`;
+        stroke = `rgb(${this.settings.inactiveBorderColor.join(',')})`;
+      } else {
+        if (isMono) {
+          fill = '#202026';
+          stroke = '#0a0a0e';
         } else {
           fill = `rgb(${key.fillColor.join(',')})`;
           stroke = `rgb(${key.borderColor.join(',')})`;
@@ -869,3 +857,4 @@ class GlowPiano {
 
 globalThis.GlowPiano = GlowPiano;
 if (typeof module !== 'undefined' && module.exports) module.exports = GlowPiano;
+// --- END OF FILE GlowPiano.js ---

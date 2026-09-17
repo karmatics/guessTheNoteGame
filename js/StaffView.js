@@ -22,10 +22,10 @@ class StaffView {
 
     // Canonical, line-free musical notation SVG assets
     this.svgUrls = {
-      trebleClef: 'https://upload.wikimedia.org/wikipedia/commons/f/ff/GClef.svg',
-      bassClef: 'https://upload.wikimedia.org/wikipedia/commons/c/c5/FClef.svg',
-      flat: 'https://upload.wikimedia.org/wikipedia/commons/b/ba/Flat.svg',
-      sharp: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/Sharp.svg'
+      trebleClef: '/guessTheNoteGame/resources/GClef.svg',
+      bassClef: '/guessTheNoteGame/resources/FClef.svg',
+      flat: '/guessTheNoteGame/resources/Flat.svg',
+      sharp: '/guessTheNoteGame/resources/Sharp.svg'
     };
   }
 
