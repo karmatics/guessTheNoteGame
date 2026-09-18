@@ -7,99 +7,113 @@ class GuessTheNoteGame {
   }
 
   start() {
-    if (!document.getElementById('architects-daughter-font')) {
-      const link = makeElement('link', {
-        id: 'architects-daughter-font',
-        rel: 'stylesheet',
-        href: 'https://fonts.googleapis.com/css2?family=Architects+Daughter&display=swap',
+      if (!document.getElementById('architects-daughter-font')) {
+        const link = makeElement('link', {
+          id: 'architects-daughter-font',
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=Architects+Daughter&display=swap',
+        });
+        document.head.appendChild(link);
+      }
+
+      this.pianoSettings = {};
+      this.instruments = new InstrumentSounds();
+      window.instruments = this.instruments;
+
+      this.States = {
+        IDLE: 'IDLE',
+        PLAYING: 'PLAYING',
+        GUESSING: 'GUESSING',
+        FEEDBACK: 'FEEDBACK',
+      };
+      this.state = this.States.IDLE;
+      this.currentSequence = [];
+      this.overlays = [];
+      this.startDelay = 1000;
+      this.correctFeedbackDelay = 3000;
+      this.newRoundDelay = 700;
+      this.pianoRenderModes = ['fractions', 'midpoints', 'twelfths'];
+      this.currentModeIndex = 0;
+
+      this.scoreBox = new ScoreBox(this.rootElement);
+
+      this.gameBox = new GameBox();
+      this.gameBox.start(
+        this.rootElement,
+        (newMode) => this.handleModeChange(newMode),
+        (rainbowMode) => this.handleRainbowModeChange(rainbowMode)
+      );
+
+      this.addEventListeners();
+
+      this.pianoDivElement = makeElement('div', {
+        style: { overflow: 'hidden', position: 'absolute' },
       });
-      document.head.appendChild(link);
-    }
+      this.rootElement.appendChild(this.pianoDivElement);
 
-    this.pianoSettings = {};
-    this.instruments = new InstrumentSounds();
-    window.instruments = this.instruments;
+      // Initialize piano instance BEFORE positioner callback so sizeCallback can render immediately
+      this.piano = new Piano();
+      this.pianoDivElement.appendChild(this.piano.getContainer());
+      this.piano.setGameInstance(this);
+      this.piano.setMiddleCMarkerVisibility(true);
 
-    this.States = {
-      IDLE: 'IDLE',
-      PLAYING: 'PLAYING',
-      GUESSING: 'GUESSING',
-      FEEDBACK: 'FEEDBACK',
-    };
-    this.state = this.States.IDLE;
-    this.currentSequence = [];
-    this.overlays = [];
-    this.startDelay = 1000;
-    this.correctFeedbackDelay = 3000;
-    this.newRoundDelay = 700;
-    this.pianoRenderModes = ['fractions', 'midpoints', 'twelfths'];
-    this.currentModeIndex = 0;
-
-    this.scoreBox = new ScoreBox(this.rootElement);
-
-    this.gameBox = new GameBox();
-    this.gameBox.start(
-      this.rootElement,
-      (newMode) => this.handleModeChange(newMode),
-      (rainbowMode) => this.handleRainbowModeChange(rainbowMode)
-    );
-
-    this.addEventListeners();
-
-    this.pianoDivElement = makeElement('div', {
-      style: { overflow: 'hidden', position: 'absolute' },
-    });
-    this.rootElement.appendChild(this.pianoDivElement);
-
-    this.pianoPositioner = new SmartElementPositioner(this.pianoDivElement, {
-      container: this.rootElement,
-      position: [0, 36],
-      size: [100, 41],
-      sizeCallback: (self, pixelDims) => {
-        if (this.piano && pixelDims.width > 0 && pixelDims.height > 0) {
-          this.piano.setSizeAndPosition(pixelDims.width, pixelDims.height);
-        }
-      },
-    });
-
-    this.piano = new Piano();
-    this.pianoDivElement.appendChild(this.piano.getContainer());
-    this.piano.setGameInstance(this);
-    this.piano.setMiddleCMarkerVisibility(true);
-    this.pianoPositioner.update();
-
-    // Initialize Mini Piano Map for portrait Staff Reading overview
-    this.miniPianoMap = new MiniPianoMap({
-      startMidi: this.piano.settings.fullStartMidi,
-      endMidi: this.piano.settings.fullEndMidi,
-    });
-    this.rootElement.appendChild(this.miniPianoMap.getContainer());
-
-    this.miniPianoPositioner = new SmartElementPositioner(this.miniPianoMap.getContainer(), {
-      container: this.rootElement,
-      position: [7.5, 72.2],
-      size: [85, 4.2],
-      sizeCallback: (self, pixelDims) => {
-        if (this.miniPianoMap && pixelDims.width > 0 && pixelDims.height > 0) {
-          this.miniPianoMap.setSize(pixelDims.width, pixelDims.height);
-          if (this.piano) {
-            const { startFraction, endFraction } = this.piano.getViewportFraction();
-            this.miniPianoMap.setViewport(startFraction, endFraction);
+      this.pianoPositioner = new SmartElementPositioner(this.pianoDivElement, {
+        container: this.rootElement,
+        position: [0, 36],
+        size: [100, 41],
+        sizeCallback: (self, pixelDims) => {
+          if (this.piano && pixelDims.width > 0 && pixelDims.height > 0) {
+            this.piano.setSizeAndPosition(pixelDims.width, pixelDims.height);
           }
-        }
-      },
-    });
+        },
+      });
 
-    this.instrumentSelector = new InstrumentSelector(this);
-    this.instrumentSelector.start();
+      // Explicitly guarantee initial dimensions are applied to the piano SVG
+      const rootRect = this.rootElement.getBoundingClientRect();
+      const initW = rootRect.width || window.innerWidth;
+      const initH = (rootRect.height || window.innerHeight) * 0.41;
+      if (initW > 0 && initH > 0) {
+        this.piano.setSizeAndPosition(initW, initH);
+      }
+      this.pianoPositioner.update(true);
 
-    this.keySelector = new KeySignatureSelector(this);
-    this.keySelector.start();
+      // Initialize Mini Piano Map for portrait Staff Reading overview
+      this.miniPianoMap = new MiniPianoMap({
+        startMidi: this.piano.settings.fullStartMidi,
+        endMidi: this.piano.settings.fullEndMidi,
+      });
+      this.rootElement.appendChild(this.miniPianoMap.getContainer());
 
-    this.createSecretButton();
-    this.updateUI();
-  }
+      this.miniPianoPositioner = new SmartElementPositioner(this.miniPianoMap.getContainer(), {
+        container: this.rootElement,
+        position: [7.5, 72.2],
+        size: [85, 4.2],
+        sizeCallback: (self, pixelDims) => {
+          if (this.miniPianoMap && pixelDims.width > 0 && pixelDims.height > 0) {
+            this.miniPianoMap.setSize(pixelDims.width, pixelDims.height);
+            if (this.piano) {
+              const { startFraction, endFraction } = this.piano.getViewportFraction();
+              this.miniPianoMap.setViewport(startFraction, endFraction);
+            }
+          }
+        },
+      });
 
+      this.instrumentSelector = new InstrumentSelector(this);
+      this.instrumentSelector.start();
+
+      this.keySelector = new KeySignatureSelector(this);
+      this.keySelector.start();
+
+      this.createSecretButton();
+      this.updateUI();
+
+      // Trigger an immediate frame-delayed update to catch late layout expansions
+      requestAnimationFrame(() => {
+        if (this.pianoPositioner) this.pianoPositioner.update(true);
+        if (this.miniPianoPositioner) this.miniPianoPositioner.update(true);
+      });
+    }
   updateMiniPianoVisibility() {
     if (!this.miniPianoMap) return;
     const isPortrait = this.rootElement
